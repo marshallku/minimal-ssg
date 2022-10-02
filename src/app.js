@@ -37,19 +37,33 @@ const TIMESTAMPS = Object.fromEntries(
     ])
 );
 
+/**
+ * Create directory with given name
+ *
+ * @param {string} dirName
+ */
 function makeDir(dirName) {
     fs.mkdir(dirName, { recursive: true }, (err) => {
         if (err) throw err;
     });
 }
 
-function getFileName(fileNameWithExtension) {
-    return path.basename(
-        fileNameWithExtension,
-        path.extname(fileNameWithExtension)
-    );
+/**
+ * Get file name without extension
+ *
+ * @param {string} fileName file name with extension
+ * @returns {string} file name without extension
+ */
+function getFileName(fileName) {
+    return path.basename(fileName, path.extname(fileName));
 }
 
+/**
+ * Create navigation in file
+ *
+ * @param {string} fileName Name of file to edit
+ * @returns {string} Modified data with navigation
+ */
 function createNavigation(fileName) {
     return `<ul>${NAVIGATION.map((file) => {
         const name = getFileName(file);
@@ -64,6 +78,12 @@ function createNavigation(fileName) {
     }).reduce((acc, cur) => acc + cur, "")}</ul>`;
 }
 
+/**
+ * Create description of content
+ *
+ * @param {string} content
+ * @returns {string} Description of content
+ */
 function getDescriptionFromContent(content) {
     const maxLength = 200;
     const contentForDescription = content
@@ -81,39 +101,24 @@ function getDescriptionFromContent(content) {
     return `${contentForDescription.slice(0, maxLength)}...`;
 }
 
-function createFile({ fileName, content, toc, info }) {
-    const { title, author, createdAt, modifiedAt, description } = info;
-    const descriptionFromContent = getDescriptionFromContent(content);
-    const templated = TEMPLATE.replace(/<!-- \[##_CONTENT_##] -->/gm, content)
-        .replace(/<!-- \[##_TITLE_##] -->/gm, title)
-        .replace(/<!-- \[##_SITE_NAME_##] -->/gm, config.defaultTitle)
-        .replace(
-            /<!-- \[##_DESCRIPTION_##] -->/gm,
-            description || descriptionFromContent
-        )
-        .replace(/<!-- \[##_CREATED_AT_##] -->/gm, createdAt)
-        .replace(/<!-- \[##_MODIFIED_AT_##] -->/gm, modifiedAt)
-        .replace(/<!-- \[##_AUTHOR_##] -->/gm, author)
-        .replace(/<!-- \[##_TOC_##] -->/gm, toc)
-        .replace(/<!-- \[##_NAVIGATION_##] -->/gm, createNavigation(fileName))
-        .replace(/(src=|href=|url\()"\//g, `$1"${config.baseURL}`);
-
-    if (fileName === "index") {
-        fs.writeFileSync(path.resolve(OUTPUT_DIR, "index.html"), templated);
-        return;
-    }
-
-    fs.writeFileSync(
-        path.resolve(OUTPUT_DIR, getFileName(fileName), "index.html"),
-        templated
-    );
-}
-
+/**
+ * Parse information of file with git and comments in file
+ *
+ * @param {RegExpMatchArray | null} regexMatchGroup
+ * @param {string} fileName
+ * @returns {{
+ *      title: string;
+ *      author: string;
+ *      createdAt: string;
+ *      modifiedAt: string;
+ *      description: string;
+ * }}
+ */
 function parseInfo(regexMatchGroup, fileName) {
     const { createdAt, modifiedAt } = TIMESTAMPS[fileName];
     const defaultValue = {
         title: getFileName(fileName),
-        author: "Anonymous",
+        author: "",
         createdAt,
         modifiedAt,
         description: "",
@@ -139,6 +144,12 @@ function parseInfo(regexMatchGroup, fileName) {
     };
 }
 
+/**
+ * Add title for table of contents to file
+ *
+ * @param {string} data
+ * @returns {string} Data with toc title
+ */
 function addTocTitleToData(data) {
     const h2Regex = /^## .+/gm;
     const [matchHeading] = data.match(h2Regex) || [];
@@ -153,6 +164,13 @@ function addTocTitleToData(data) {
     return `## Table of contents\n\n${data}`;
 }
 
+/**
+ * Add navigation of previous / next post to file
+ *
+ * @param {string} data
+ * @param {number} index Index of file
+ * @returns {string}
+ */
 function addNavigationToData(data, index) {
     if (NAVIGATION.length <= 1) {
         return data;
@@ -189,6 +207,15 @@ function addNavigationToData(data, index) {
     )}${getArticleTag("Next", NAVIGATION[index + 1])}</div>`;
 }
 
+/**
+ * Create table of contents of file content
+ *
+ * @param {string} content
+ * @returns {{
+ *      content: string;
+ *      toc: string;
+ * }}
+ */
 function parseTocFromContent(content) {
     const lineBreakFormatted = content.replace(/\r?\n/gm, "\n");
     const contentArray = lineBreakFormatted.split("\n");
@@ -227,6 +254,56 @@ function parseTocFromContent(content) {
     };
 }
 
+/**
+ * Create file with option
+ *
+ * @param {{
+ *  fileName: string;
+ *  content: string;
+ *  toc: string;
+ *  info: {
+ *      title: string;
+ *      author: string;
+ *      createdAt: string;
+ *      modifiedAt: string;
+ *      description: string;
+ *  };
+ * }} option
+ */
+function createFile({ fileName, content, toc, info }) {
+    const { title, author, createdAt, modifiedAt, description } = info;
+    const descriptionFromContent = getDescriptionFromContent(content);
+    const templated = TEMPLATE.replace(/<!-- \[##_CONTENT_##] -->/gm, content)
+        .replace(/<!-- \[##_TITLE_##] -->/gm, title)
+        .replace(/<!-- \[##_SITE_NAME_##] -->/gm, config.defaultTitle)
+        .replace(
+            /<!-- \[##_DESCRIPTION_##] -->/gm,
+            description || descriptionFromContent
+        )
+        .replace(/<!-- \[##_CREATED_AT_##] -->/gm, createdAt)
+        .replace(/<!-- \[##_MODIFIED_AT_##] -->/gm, modifiedAt)
+        .replace(/<!-- \[##_AUTHOR_##] -->/gm, author)
+        .replace(/<!-- \[##_TOC_##] -->/gm, toc)
+        .replace(/<!-- \[##_NAVIGATION_##] -->/gm, createNavigation(fileName))
+        .replace(/(src=|href=|url\()"\//g, `$1"${config.baseURL}`);
+
+    if (fileName === "index") {
+        fs.writeFileSync(path.resolve(OUTPUT_DIR, "index.html"), templated);
+        return;
+    }
+
+    fs.writeFileSync(
+        path.resolve(OUTPUT_DIR, getFileName(fileName), "index.html"),
+        templated
+    );
+}
+
+/**
+ * Parse markdown and create html content
+ *
+ * @param {string} fileName
+ * @param {index} index Index of file
+ */
 async function createHtmlOutputWithMd(fileName, index) {
     const commentsRegex = /^<!--((.|\r?\n)*)-->$/gm;
     const data = fs.readFileSync(path.resolve(DOCS_DIR, fileName), "utf-8");
