@@ -20,7 +20,7 @@ jobs:
             - name: Build
               run: npm run build
             - name: Move public dir
-              run: cp -r src/public/* dist
+              run: cp -rp public/* dist
             - name: Move theme dir
               run: mkdir -p dist/_theme && cp -r theme/* dist/_theme
             - name: Deploy with gh-pages
