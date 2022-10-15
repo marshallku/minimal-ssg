@@ -8,7 +8,7 @@ import remarkToc from "remark-toc";
 import rehypeSlug from "rehype-slug";
 import rehypeStringify from "rehype-stringify";
 import gitDateExtractor from "git-date-extractor";
-import config from "../config.js";
+import userConfig from "../config.js";
 
 const DOCS_DIR = path.resolve("./docs");
 const OUTPUT_DIR = path.resolve("./dist");
@@ -36,6 +36,11 @@ const TIMESTAMPS = Object.fromEntries(
         },
     ])
 );
+const CONFIG = {
+    defaultTitle: userConfig.defaultTitle ?? "",
+    baseURL: userConfig.baseURL ?? "/",
+    useToc: userConfig.useToc ?? true,
+};
 
 /**
  * Create directory with given name
@@ -69,7 +74,7 @@ function createNavigation(fileName) {
         const name = getFileName(file);
 
         if (name === "index") {
-            return `<li><a href="/">${config.defaultTitle}</a></li>`;
+            return `<li><a href="/">${CONFIG.defaultTitle}</a></li>`;
         }
 
         return `<li${
@@ -179,7 +184,7 @@ function addNavigationToData(data, index) {
     const getArticleTag = (type, rawTitle) => {
         const title = getFileName(rawTitle);
         const isIndexFile = title === "index";
-        const titleToDisplay = isIndexFile ? config.defaultTitle : title;
+        const titleToDisplay = isIndexFile ? CONFIG.defaultTitle : title;
         const uri = isIndexFile ? "/" : `/${title}/`;
 
         return `<article class="navigation-item navigation-item--${type.toLowerCase()}"><a href="${uri}"><div><div class="navigation-item__type">${type}</div><h2 class="navigation-item__title">${titleToDisplay}</h2></div><div><i class="icon-arrow_${
@@ -275,7 +280,7 @@ function createFile({ fileName, content, toc, info }) {
     const descriptionFromContent = getDescriptionFromContent(content);
     const templated = TEMPLATE.replace(/<!-- \[##_CONTENT_##] -->/gm, content)
         .replace(/<!-- \[##_TITLE_##] -->/gm, title)
-        .replace(/<!-- \[##_SITE_NAME_##] -->/gm, config.defaultTitle)
+        .replace(/<!-- \[##_SITE_NAME_##] -->/gm, CONFIG.defaultTitle)
         .replace(
             /<!-- \[##_DESCRIPTION_##] -->/gm,
             description || descriptionFromContent
@@ -283,9 +288,9 @@ function createFile({ fileName, content, toc, info }) {
         .replace(/<!-- \[##_CREATED_AT_##] -->/gm, createdAt)
         .replace(/<!-- \[##_MODIFIED_AT_##] -->/gm, modifiedAt)
         .replace(/<!-- \[##_AUTHOR_##] -->/gm, author)
-        .replace(/<!-- \[##_TOC_##] -->/gm, toc)
+        .replace(/<!-- \[##_TOC_##] -->/gm, CONFIG.useToc ? toc : "")
         .replace(/<!-- \[##_NAVIGATION_##] -->/gm, createNavigation(fileName))
-        .replace(/(src=|href=|url\()"\//g, `$1"${config.baseURL}`);
+        .replace(/(src=|href=|url\()"\//g, `$1"${CONFIG.baseURL}`);
 
     if (fileName === "index") {
         fs.writeFileSync(path.resolve(OUTPUT_DIR, "index.html"), templated);
