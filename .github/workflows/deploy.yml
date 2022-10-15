@@ -23,8 +23,10 @@ jobs:
               run: cp -rp public/* dist
             - name: Move theme dir
               run: mkdir -p dist/_theme && cp -r theme/* dist/_theme
+            - name: Add nojekyll file
+              run: touch dist/.nojekyll
             - name: Deploy with gh-pages
               run: |
                   git config --global user.name github-actions
                   git remote set-url origin https://x-access-token:${{ secrets.TOKEN }}@github.com/${{ github.repository }}
-                  npx gh-pages -d dist
+                  npx gh-pages -t true -d dist
